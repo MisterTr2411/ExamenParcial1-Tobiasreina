@@ -1,0 +1,17 @@
+function renderGames(list) {
+    const container = document.getElementById("games");
+    container.innerHTML = "";
+
+    list.forEach(game => {
+        const card = document.createElement("div");
+        card.className = "p-4 bg-white shadow-md rounded-xl";
+
+        card.innerHTML = `
+            <h2 class="text-xl font-bold">${game.title}</h2>
+            <p>${game.category}</p>
+            <p class="font-semibold">$${game.price}</p>
+        `;
+
+        container.appendChild(card);
+    });
+}
