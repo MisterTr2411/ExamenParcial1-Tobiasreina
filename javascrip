@@ -1,0 +1,129 @@
+const gameGrid = document.getElementById("gameGrid");
+const loading = document.getElementById("loading");
+const errorMsg = document.getElementById("errorMsg");
+const loadMoreBtn = document.getElementById("loadMore");
+
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const storeFilter = document.getElementById("storeFilter");
+const sortPrice = document.getElementById("sortPrice");
+
+let page = 0;
+let currentGames = [];
+
+async function fetchDeals() {
+    try {
+        loading.classList.remove("hidden");
+        errorMsg.classList.add("hidden");
+
+        const store = storeFilter.value ? `&storeID=${storeFilter.value}` : "";
+        const url = `https://www.cheapshark.com/api/1.0/deals?pageNumber=${page}&pageSize=12${store}`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("Error en API");
+
+        const data = await res.json();
+        currentGames = currentGames.concat(data);
+
+        renderGames(data);
+    } catch (err) {
+        errorMsg.classList.remove("hidden");
+    } finally {
+        loading.classList.add("hidden");
+    }
+}
+
+function renderGames(games) {
+    games.forEach(g => {
+        const card = document.createElement("div");
+        card.className = "bg-gray-800 p-4 rounded shadow";
+
+        card.innerHTML = `
+            <img src="${g.thumb}" class="w-full mb-3 rounded">
+            <h3 class="text-xl font-bold">${g.title}</h3>
+            <p class="text-green-400">$${g.salePrice}</p>
+            <p class="text-gray-400 line-through">$${g.normalPrice}</p>
+            <button class="mt-3 px-4 py-2 bg-blue-600 rounded ver-detalle" data-id="${g.dealID}">
+                Ver detalle
+            </button>
+        `;
+
+        gameGrid.appendChild(card);
+    });
+}
+
+loadMoreBtn.addEventListener("click", () => {
+    page++;
+    fetchDeals();
+});
+
+searchBtn.addEventListener("click", async () => {
+    const text = searchInput.value.trim();
+    if (!text) return;
+
+    try {
+        loading.classList.remove("hidden");
+        gameGrid.innerHTML = "";
+
+        const url = `https://www.cheapshark.com/api/1.0/games?title=${text}&limit=12`;
+        const res = await fetch(url);
+        const data = await res.json();
+
+        gameGrid.innerHTML = "";
+        data.forEach(g => {
+            const card = document.createElement("div");
+            card.className = "bg-gray-800 p-4 rounded shadow";
+
+            card.innerHTML = `
+                <img src="${g.thumb}" class="w-full mb-3 rounded">
+                <h3 class="text-xl font-bold">${g.external}</h3>
+                <p class="text-gray-400">ID: ${g.gameID}</p>
+            `;
+
+            gameGrid.appendChild(card);
+        });
+
+    } catch {
+        errorMsg.classList.remove("hidden");
+    } finally {
+        loading.classList.add("hidden");
+    }
+});
+
+
+document.addEventListener("click", async e => {
+    if (e.target.classList.contains("ver-detalle")) {
+        const id = e.target.dataset.id;
+
+        const res = await fetch(`https://www.cheapshark.com/api/1.0/deals?id=${id}`);
+        const data = await res.json();
+
+        document.getElementById("modalImg").src = data.gameInfo.thumb;
+        document.getElementById("modalTitle").textContent = data.gameInfo.name;
+        document.getElementById("modalNormal").textContent = "Precio normal: $" + data.gameInfo.retailPrice;
+        document.getElementById("modalSale").textContent = "Oferta: $" + data.gameInfo.salePrice;
+        document.getElementById("modalLink").href = data.gameInfo.storeLink;
+
+        document.getElementById("modal").classList.remove("hidden");
+    }
+
+    if (e.target.id === "closeModal") {
+        document.getElementById("modal").classList.add("hidden");
+    }
+});
+
+
+sortPrice.addEventListener("change", () => {
+    const val = sortPrice.value;
+    if (!val) return;
+
+    const sorted = [...currentGames].sort((a, b) =>
+        val === "asc" ? a.salePrice - b.salePrice : b.salePrice - a.salePrice
+    );
+
+    gameGrid.innerHTML = "";
+    renderGames(sorted);
+});
+
+
+fetchDeals();
